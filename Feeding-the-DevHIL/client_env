@@ -1,0 +1,5 @@
+export HAAS_ENDPOINT=http://127.0.0.1:5000
+export HAAS_USERNAME=<username>
+export HAAS_PASSWORD=<password>
+
+Refer to the README file for <username> <password>
