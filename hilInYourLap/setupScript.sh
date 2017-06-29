@@ -60,12 +60,13 @@ for i in veth-02 tap-200; do ovs-vsctl set port $i tag=200; done
 
 dhcp_setup () {
 
-ip address add 10.1.100.2/24 dev tap-100 #Setting ip address for dhcp server. 
+ip netns exec dhcp-100 ip address add 10.1.100.2/24 dev tap-100 #Setting ip address for dhcp server. 
 
 # Start dhcp server in dhcp-100 and dhcp-200
 ip netns exec dhcp-100 dnsmasq --interface=tap-100 --dhcp-range=10.1.100.10,10.1.100.50,255.255.255.0
-ip netns exec node-01 dhclient dhclient eth0-01 
-ip netns exec node-01 ping 10.1.100.2
+ip netns exec node-01 dhclient eth0-01 
+ip netns exec node-01 ping -c 5 10.1.100.2
+ip netns exec node-01 ip a
 }
 
 case "$1" in 
@@ -92,9 +93,15 @@ case "$1" in
 		dhcp_netns
 		node_netns
 		vlan_setup
+		dhcp_setup
 		;;
 	*) 
-		echo $"Usage $0 {switch_install|switch_setup|dhcp_netns|nodes|vlan|dhcp_setup|all}"
+		echo $"Usage:	 $0 {switch_install|switch_setup|dhcp_netns|nodes|vlan|dhcp_setup|all}"
+		echo ""
+		echo "Each case depends on successful completion of the previous case."
+		echo "For partial setup, use the above options sequentially in same order as presented."
+		echo ""
+		echo "To do the full setup, run:	 $0 all"
 		exit 1
 esac
 
