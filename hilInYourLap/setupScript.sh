@@ -3,7 +3,7 @@
 #Installing openvswitch
 install_openvswitch () {
 
-yum install openvswitch
+yum install openvswitch  #It will redirect to `dnf install` on Fedora.
 service openvswitch enable
 service openvswitch start
 service openvswitch status
@@ -12,7 +12,11 @@ ovs-vsctl show
 
 setup_switch () {
 
-ovs-vsctl del-br redhat
+ovs-vsctl br-exists redhat
+if [ $? == 2 ]
+  then
+  ovs-vsctl del-br redhat
+fi
 #Creating switch named redhat
 ovs-vsctl add-br redhat
 ip link set dev redhat up 
@@ -69,6 +73,40 @@ ip netns exec node-01 ping -c 5 10.1.100.2
 ip netns exec node-01 ip a
 }
 
+cleanup () {
+	ip -all netns delete 	#delete all netns ns (dhcp servers + nodes)
+	ovs-vsctl del-br redhat #Delete the openvswitch
+	#Remove any orphaned veth pairs
+	orph_veth=$( ip a|grep veth|awk -F : {' print $2 }' |awk -F @ '{ print $1 '}`` )
+	if [ ${#orph_veth[@]} > 0 ]
+	then
+	  for i in ${orph_veth[@]}
+	  do 
+  	    ip link delete $i
+	  done
+	fi
+	#Kill any DHCP process started from the netns based dhcp server
+	killDHCP=$( ps -ef |grep tap|grep dnsmasq|awk {' print $2 '} )
+	if [ ${#killDHCP[@]} > 0 ]
+	then
+	  for i in ${killDHCP[@]}
+	  do 
+	    kill $i
+	  done
+	fi
+	#Kill any dhclients
+	killDHCLIENT=$( ps -ef |grep eth0|grep dhclient )
+	if [ ${#killDHCLIENT[@]} > 0 ]
+	then
+	  for i in ${killDHCLIENT[@]}
+	    do
+	     kill $i
+	    done
+	fi
+
+}
+
+
 case "$1" in 
 	switch_install)
 		install_openvswitch
@@ -95,13 +133,18 @@ case "$1" in
 		vlan_setup
 		dhcp_setup
 		;;
+	cleanup)
+		cleanup
+		;;
 	*) 
-		echo $"Usage:	 $0 {switch_install|switch_setup|dhcp_netns|nodes|vlan|dhcp_setup|all}"
+		echo $"Usage:	 $0 {switch_install|switch_setup|dhcp_netns|nodes|vlan|dhcp_setup|cleanup|all}"
 		echo ""
 		echo "Each case depends on successful completion of the previous case."
-		echo "For partial setup, use the above options sequentially in same order as presented."
+		echo "For partial setup, use the above options sequentially in same order as presented."		       
 		echo ""
-		echo "To do the full setup, run:	 $0 all"
+		echo "Option switch_install is required only one time on a fresh VM."
+		echo " "
+		echo "To re-do the full setup, first run:	 $0 cleanup; $0 all"
 		exit 1
 esac
 
