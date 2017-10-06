@@ -95,7 +95,7 @@ cleanup () {
 	  done
 	fi
 	#Kill any dhclients
-	killDHCLIENT=$( ps -ef |grep eth0|grep dhclient )
+	killDHCLIENT=$( ps -ef |grep eth0|grep dhclient|awk {' print $2 '} )
 	if [ ${#killDHCLIENT[@]} > 0 ]
 	then
 	  for i in ${killDHCLIENT[@]}
@@ -147,10 +147,3 @@ case "$1" in
 		echo "To re-do the full setup, first run:	 $0 cleanup; $0 all"
 		exit 1
 esac
-
-
-
-		
-
-
-

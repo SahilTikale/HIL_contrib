@@ -24,6 +24,12 @@ create_nodes() {
 
       ip link set eth0-$i netns node-$i 
       # Connect eth0-$i end of cable to nodes.
+
+        # Bring all the veth pair ports up
+	for j in `ip netns exec node-$i ip a|grep mtu|awk -F : '{ print $2 '}|awk -F @ '{ print $1 '}`;
+	  do  ip netns exec node-$i ip link set dev $j up
+	done
+  ip link set dev veth-$i up
    done
    ovs-vsctl show
    ip netns list
@@ -35,21 +41,37 @@ connect_node2switch () {
   echo "Connecting nodes from node-<0-$no_of_nodes> to $switch_name." 
   sleep 2
   for ((i=0; i<=no_of_nodes; i++));
-    do
-      ovs-vsctl add-port $switch_name veth-$i
-    done
-    ovs-vsctl show
+    do ovs-vsctl add-port $switch_name veth-$i
+      for j in `ip netns exec node-$i ip a|grep mtu|awk -F : '{ print $2 '}|awk -F @ '{ print $1 '}`;
+        do ip netns exec node-$i ip link set dev $j up
+      done
+  done
+ovs-vsctl show
 }
 
 fullsetup () {
   no_of_nodes=$1
   switch_name=$2
+  echo "Cleaning up previous setup, if any "
+
   echo "Creating a datacenter having $1 nodes and a switch called $switch_name"
   sleep 2
   create_switch $switch_name
   create_nodes $no_of_nodes $switch_name
   connect_node2switch $no_of_nodes $switch_name
 }
+
+cleanup () {
+  switch_name=$1
+  ovs-vsctl br-exists $1
+  if [[ `echo $?` == 0 ]]
+  then 
+    ovs-vsctl del-br $1
+  fi
+}
+
+ 
+
 
 test_loop() {
 	total=$1
@@ -73,6 +95,9 @@ case "$1" in
   -fullsetup)
     fullsetup $2 $3
     ;;
+  -cleanup)
+    cleanup $2
+    ;;
   loop)
     test_loop $2 
     ;;
@@ -83,9 +108,11 @@ case "$1" in
     echo $"		# Creates an openvswitch by that name"
     echo $"  	-nodes <no_of_nodes> <switch_name> "
     echo $"			# Creates nodes (netns) "
-    echo $"  	-cable nodes <no_of_nodes> <switch_name> "
+    echo $"  	-connect_node2switch <no_of_nodes> <switch_name> "
     echo $"			# Connects nodes to <switch_name>"
     echo $"   Running them in this order. "
+    echo $" "
+    echo $"   OR do the full setup as follows: "
     echo $" "
     echo $"$0 -fullsetup <no_of_nodes> <switch_name>"
     echo $"		# will setup a mock infrastructure with a mock switch"
