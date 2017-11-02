@@ -22,20 +22,25 @@ create_switch() {
 
 dhcp_setup () {
 switch_name=$1
-dhcp_netns=$2
+vlan_id=$2
+node=dhcp_$2
+port=tap_$2
 ip_addr=$3
 ip_range=$4
 # TO DO:
 # Accept as an argument <dhcp_netns name>, <IP_address for dhcp_netns>, <dhcp-range>
 # Set a dhcp server using the above arguments 
 
-ip netns exec dhcp-100 ip address add 10.1.100.2/24 dev tap-100 #Setting ip address for dhcp server.
+ip netns exec $node ip address add $ip_addr dev $port
+					#Setting ip address for dhcp server.
 
 # Start dhcp server in dhcp-100 and dhcp-200
-ip netns exec dhcp-100 dnsmasq --interface=tap-100 --dhcp-range=10.1.100.10,10.1.100.50,255.255.255.0
-ip netns exec node-01 dhclient eth0-01
-ip netns exec node-01 ping -c 5 10.1.100.2
-ip netns exec node-01 ip a
+#eg: ip netns exec dhcp_100 dnsmasq --interface=tap_100 --dhcp-range=10.1.100.10,10.1.100.50,255.255.255.0
+ip netns exec $node dnsmasq --interface=$port --dhcp-range=$ip_range
+#ip netns exec node-01 dhclient eth0-01
+# eg: ip netns exec node-01 ping -c 5 10.1.100.2
+#ip netns exec node-01 ping -c 5 10.1.100.2
+#ip netns exec node-01 ip a
 }
 
 dhcp_netns () {
@@ -44,18 +49,22 @@ dhcp_netns () {
 
 switch_name=$1
 vlan_id=$2
-#for i in {100..500..100}; do
-#  ip netns add dhcp-$i; # create 5 isolation network namespace for dhcp
-  ip netns add dhcp_$vlan_id; # creates a netns named dhcp_<vlan_id>
+node=dhcp_$2
+port=tap_$2
+ip_addr=$3
+ip_range=$4
+  ip netns add $node; # creates a netns named dhcp_<vlan_id>
   #Create internal ports in openvswitch for each dhcp server (dhcp-netns)
-  ovs-vsctl add-port $switch_name tap_$vlan_id -- set interface tap_$vlan_id type=internal
+  ovs-vsctl add-port $switch_name $port -- set interface $port type=internal
   # Moving the tap-<vlan> to their respective netns
-  ip link set tap_$vlan_id netns dhcp_$vlan_id
+  ip link set $port netns $node
   # Bringing up the interfaces in all DHCP-netns
-  for j in `ip netns exec dhcp_$vlan_id ip a|grep mtu|awk -F : '{ print $2 '}`
-    do ip netns exec dhcp_$vlan_id ip link set dev $j up
+  for j in `ip netns exec $node ip a|grep mtu|awk -F : '{ print $2 '}`
+    do ip netns exec $node ip link set dev $j up
   done
-#done
+  #Set up dhcp server
+  sleep 1;
+  dhcp_setup $switch_name $vlan_id $ip_addr $ip_range
 }
 
 
@@ -138,7 +147,7 @@ usage () {
   			[-switch <switch_name> ]
   			[-nodes <no_of_nodes> <switch_name> ]
 			[-connect <no_of_nodes> <switch_name> ]
-			[-setDHCP <switch_name> <vlan_id> ]
+			[-setDHCP <switch_name> <vlan_id> <ip_addr> <ip_range>]
 			[-cleanup]
 
   -initialize	Installs openvswitch. Run once before using any other options.
@@ -161,9 +170,13 @@ usage () {
 		Partial setup, step 3: 
 		Connects nodes to <switch_name> 
 
- -setDHCP <switch_name> <vlan_id>
+ -setDHCP <switch_name> <vlan_id> <ip_addr> <ip_range>
  		Creates a network namespace that hosts a DHCP server
 		on switch <switch_name> for vlan <vlan_id>
+		<switch_name> : 'anystring'
+		<vlan_id> : 100 
+		<ip_addr> : ip address of the DHCP server (10.1.100.2/24)
+		<ip_range>: 10.1.100.10,10.1.100.50,255.255.255.0
 	
  -cleanup 
 		Cleans up like a YETI.
@@ -201,7 +214,7 @@ case "$1" in
      		connect_node2switch $2 $3
      		;;
 	-setDHCP)
-		dhcp_netns $2 $3
+		dhcp_netns $2 $3 $4 $5
 		;;
   	-fullsetup)
     		fullsetup $2 $3
