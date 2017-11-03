@@ -37,6 +37,7 @@ ip netns exec $node ip address add $ip_addr dev $port
 # Start dhcp server in dhcp-100 and dhcp-200
 #eg: ip netns exec dhcp_100 dnsmasq --interface=tap_100 --dhcp-range=10.1.100.10,10.1.100.50,255.255.255.0
 ip netns exec $node dnsmasq --interface=$port --dhcp-range=$ip_range
+echo "DHCP server running at `ip netns pids $node` for $vlan_id"
 #ip netns exec node-01 dhclient eth0-01
 # eg: ip netns exec node-01 ping -c 5 10.1.100.2
 #ip netns exec node-01 ping -c 5 10.1.100.2
@@ -56,6 +57,7 @@ ip_range=$4
   ip netns add $node; # creates a netns named dhcp_<vlan_id>
   #Create internal ports in openvswitch for each dhcp server (dhcp-netns)
   ovs-vsctl add-port $switch_name $port -- set interface $port type=internal
+  ovs-vsctl set port $port tag=$vlan_id
   # Moving the tap-<vlan> to their respective netns
   ip link set $port netns $node
   # Bringing up the interfaces in all DHCP-netns
@@ -123,6 +125,37 @@ fullsetup () {
 }
 
 cleanup () {
+	switch_name=$1
+
+	echo "Killing all processes started by all netns"
+	allnetns=(`ip netns list|awk '{ print $1 '}`)
+	if [ ${#allnetns[@]} > 0 ]
+	then
+	  for netns_name in ${allnetns[@]}; do 
+	    pidlist=(`ip netns pids $netns_name`)
+	      if [ ${#pidlist[@]} > 0 ] 
+	      then
+		{ 
+		  ip netns pids $netns_name | xargs kill
+		}
+	      fi
+	  done
+	fi
+
+	echo "Delete all nodes (netns)"
+	ip -all netns del
+	echo "Delete the switch"
+	ovs-vsctl del-br $switch_name
+	echo "Delete orphaned virtual cables."
+        orph_veth=$( ip a|grep veth|awk -F : {' print $2 }' |awk -F @ '{ print $1 '}`` )
+        if [ ${#orph_veth[@]} > 0 ]
+        then
+          for i in ${orph_veth[@]}
+          do
+            ip link delete $i
+          done
+        fi
+
 
   switch_name=$1
   ovs-vsctl br-exists $1
@@ -178,10 +211,12 @@ usage () {
 		<ip_addr> : ip address of the DHCP server (10.1.100.2/24)
 		<ip_range>: 10.1.100.10,10.1.100.50,255.255.255.0
 	
- -cleanup 
-		Cleans up like a YETI.
+ -cleanup <switch_name> 
+ 		Cleans up like a YETI.
 	       	As if we were never here. 	
 		Leaves openvswitch installed on the system. 
+		Script does not come with input validation or error checks.
+		In case of any mess, just cleanup and start over.
   "
 
 
