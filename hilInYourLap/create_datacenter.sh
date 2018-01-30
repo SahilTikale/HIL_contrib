@@ -68,6 +68,7 @@ cleanup () {
   then 
     ovs-vsctl del-br $1
   fi
+  ip -all netns del
 }
 
  
@@ -118,6 +119,9 @@ case "$1" in
     echo $"		# will setup a mock infrastructure with a mock switch"
     echo $"  and netns as nodes connect via veth pair of cables. "
     echo $"  By default the nodes are offline. They need to be activated when needed. "
+    echo ""
+    echo ""
+    echo "Cleaning up the Setup: $0 -cleanup <switch_name>"
     echo ""
     exit 1
     ;;
