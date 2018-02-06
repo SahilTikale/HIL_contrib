@@ -9,7 +9,7 @@ for now the documentation lives at
 https://docs.google.com/a/redhat.com/document/d/1aZsQczMT4xEClsg3Uikk3HKPYON5_DFpikPcI8h6p34/edit?usp=sharing
 
 
-`` setupScript.sh ``
+The setup script: `setupScript.sh` 
 ---------------------------------------------------
 
 Works on a Fedora or CentOS based VM.
