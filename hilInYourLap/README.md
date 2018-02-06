@@ -25,4 +25,30 @@ that provides automatic ip addresses for nodes in that vlan.
 
 Read the help message to see the instructions try this. 
 
+Setting up openvswitchi: `create_datacenter.sh`
+------------------------------------------------------
+
+Works on a Fedora or CentOS based VM.
+
+To Install openvswitch and setup first time run:
+
+```
+sudo ./create_datacenter.sh -initialize
+```
+
+Running following command will let you create a bridge named `myswitch` with
+10 network namespace as nodes connected to 10 interfaces (port) on this switch
+
+```
+sudo ./create_datacenter.sh -fullsetup 10 myswitch
+``` 
+
+For help message and other options, just run the script without any arguments.
+
+```
+./create_datacenter.sh
+```
+
+Will give all the options to run this. 
+
 
