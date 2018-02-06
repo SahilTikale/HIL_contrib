@@ -51,4 +51,30 @@ For help message and other options, just run the script without any arguments.
 
 Will give all the options to run this. 
 
+Setting passwordless SUDO for running openvswitch commands: `sudo ovs-vsctl <commands>`
+----------------------------------------------------------------------------------------
+
+Keep one session open where you have logged in as root. **For safety.** 
+Add the file named `ovs` in `/etc/sudoers.d/`
+**Open the file using `visudo` only**
+
+Add the following line to it
+
+```
+<your-username> quadshil = (root) NOPASSWD: /usr/bin/ovs-vsctl
+```
+
+log out from the session, then re-login. If you mess up, use the spare session that was left open with root privileges for rescuing the sudoer configuration. 
+
+You should be able to run all openvswitch commands without the system asking for sudo password.
+Try:
+
+```
+sudo ovs-vsctl show
+```
+
+The above command should return results without asking for any sudo passwords. 
+
+
+
 
