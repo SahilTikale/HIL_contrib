@@ -38,6 +38,12 @@ then
   exit 1
 fi
 
+#Required for Input validation
+  proj_output=$(hil project node list $project 2>&1)
+  node_test=(`hil node list all|awk -F : '{ print $2 '}`)
+  node_proj_list=`echo $proj_output|awk -F : '{print $2 '}` 
+  image_name=`bmi snap ls seccloud |grep $image|awk -F "|" '{print $2 '}|tr -d '[:space:]'`
+
 node_in_array () {
 for key in ${node_list[@]}
 do
@@ -54,10 +60,10 @@ echo false
 input_validation () {
   echo "Validating input . . .  "
   echo " "
-  proj_output=$(hil project node list $project 2>&1)
-  node_test=(`hil node list all|awk -F : '{ print $2 '}`)
-  node_proj_list=`echo $proj_output|awk -F : '{print $2 '}` 
-  image_name=`bmi snap ls seccloud |grep spark-server|awk -F "|" '{print $2 '}|tr -d '[:space:]'`
+#  proj_output=$(hil project node list $project 2>&1)
+#  node_test=(`hil node list all|awk -F : '{ print $2 '}`)
+#  node_proj_list=`echo $proj_output|awk -F : '{print $2 '}` 
+#  image_name=`bmi snap ls seccloud |grep $image|awk -F "|" '{print $2 '}|tr -d '[:space:]'`
   if [[ `echo $proj_output|awk -F : '{print $1 '}` == "Error"* ]]
   then
     echo "Error: Project does not exist. "
@@ -78,9 +84,9 @@ input_validation () {
   fi
 # Cannot validate network names if they are not owned by project.
 # Raised an issue #1016 on HIL.
-  if [[ $image_name == $image ]]
+  if [[ "$image_name" == "$image" ]]
   then 
-    echo "image name is valid"
+    echo "image name is valid."  
   else
     echo "Error: image name is invalid."
     echo " "
@@ -89,6 +95,20 @@ input_validation () {
   fi
 
 
+}
+
+hil_operations() {
+  node_list=("${node_proj_list[@]}")
+  if `node_in_array`
+  then
+    echo "Step 1: Node already allocated to project. No changes made."
+  else
+    echo "Step 1: Assigning node into project "
+  fi
+
+
+
+pass
 }
 
 input_validation
