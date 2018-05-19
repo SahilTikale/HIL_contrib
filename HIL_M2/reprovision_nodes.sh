@@ -43,6 +43,7 @@ fi
   node_test=(`hil node list all|awk -F : '{ print $2 '}`)
   node_proj_list=`echo $proj_output|awk -F : '{print $2 '}` 
   image_name=`bmi snap ls seccloud |grep $image|awk -F "|" '{print $2 '}|tr -d '[:space:]'`
+  image_name=`bmi snap ls seccloud |awk -F "|" '{print $2 '}|grep $image|tr -d '[:space:]'`
 
 node_in_array () {
 for key in ${node_list[@]}
@@ -101,15 +102,32 @@ hil_operations() {
   node_list=("${node_proj_list[@]}")
   if `node_in_array`
   then
-    echo "Step 1: Node already allocated to project. No changes made."
+    echo "Step 1: Node already allocated to project. No changes to do."
   else
-    echo "Step 1: Assigning node into project "
+     hil project node add $project $node 2>&1
+     if [[ $? == 0 ]]
+     then
+	echo "Step 1:Successfully added $node to $project. "
+     else
+	echo "Step 1: Failed to add $node to $project. Aborting script."
+	exit 1
+     fi
   fi
 
+  nics=`hil node show $node|grep nics`
 
+  for i in $net01 $net02
+  do
+    output=`hil node show $node|grep $i`
+    if [[ $? == 0 ]] 
+    then
+      echo "Step 2: $node is already connected to $i. No changes to do. "
+    else
+      echo "Step 2: $node is not connected to $i"
+    fi
+  done
 
-pass
 }
 
 input_validation
- 
+hil_operations 
