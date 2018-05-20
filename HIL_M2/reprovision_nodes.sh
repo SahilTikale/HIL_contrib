@@ -11,6 +11,8 @@ node=$2
 net01=$3
 net02=$4
 image=$5
+nic01="em1"
+nic02="em2"
 
 echo "the number of arguments is $# "
 
@@ -24,6 +26,7 @@ echo " network01 		: Network name that hil project has access to. "
 echo " network02 		: --- Same as above --- "
 echo " provisioning_image 	: OS image from BMI  "  
 echo " "
+echo " NOTE: nic values are hard coded to 'em1' and 'em2' "
 }
 
 if [[ $# < 5  ]]
@@ -37,6 +40,9 @@ then
   usage
   exit 1
 fi
+
+
+echo "Validating input . . .  "
 
 #Required for Input validation
   proj_output=$(hil project node list $project 2>&1)
@@ -59,7 +65,7 @@ echo false
 
 
 input_validation () {
-  echo "Validating input . . .  "
+#  echo "Validating input . . .  "
   echo " "
 #  proj_output=$(hil project node list $project 2>&1)
 #  node_test=(`hil node list all|awk -F : '{ print $2 '}`)
@@ -115,7 +121,7 @@ hil_operations() {
   fi
 
   nics=`hil node show $node|grep nics`
-
+  nic=$nic01
   for i in $net01 $net02
   do
     output=`hil node show $node|grep $i`
@@ -123,11 +129,56 @@ hil_operations() {
     then
       echo "Step 2: $node is already connected to $i. No changes to do. "
     else
-      echo "Step 2: $node is not connected to $i"
+      connect_node=`hil node network connect $node $nic $i vlan/native`
+      if [[ $? == 0 ]]
+      then
+	echo "Step 2: Connected $node to network $i."
+      else
+	echo "HIL operation Error: Could not connect $node to  $i. "
+	exit 1      
+      fi
     fi
+    nic=$nic02
   done
 
 }
 
+bmi_operations() {
+
+  connect_node.sh $project $node
+
+  get_node=`bmi showpro seccloud|grep "$node "|awk -F "|" '{ print $2 '}|tr -d '[:space:]'`
+  get_image=`bmi showpro seccloud|grep "$node "|awk -F "|" '{ print $3 '}|tr -d '[:space:]'`
+
+  if [[ $image == $get_image ]]
+  then
+    echo "Step 3: $node already provisioned with $image. No changes required."
+  else
+    dpro=`bmi dpro $project $node $net01 $nic01`
+    pro=`bmi pro $project $node $image $nic01`
+    if [[ $? == 0 ]]
+    then 
+      echo "Step 3: $node provisioned with $image successfully. "
+    else
+      echo "BMI operation Error: Provisioning $node with $image failed. "
+      exit 1
+    fi
+  fi
+
+}
+
+
 input_validation
 hil_operations 
+bmi_operations
+
+echo " "
+echo " ** -- RESULT OUPTUT -- **"
+echo " "
+hil node show $node
+echo " "
+echo " "
+bmi showpro $project |grep "$node "
+echo " "
+echo "** -- FINISH -- **"
+echo " "
