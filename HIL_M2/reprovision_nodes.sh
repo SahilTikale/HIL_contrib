@@ -26,6 +26,7 @@ echo " network01 		: Network name that hil project has access to. "
 echo " network02 		: --- Same as above --- "
 echo " provisioning_image 	: OS image from BMI  "  
 echo " "
+echo " Example: ./reprovision_nodes.sh seccloud dell-1 bmi-provision-net-no-seccloud internet spark-server "
 echo " NOTE: nic values are hard coded to 'em1' and 'em2' "
 }
 
