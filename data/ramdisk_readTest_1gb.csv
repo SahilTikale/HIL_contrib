@@ -1,4 +1,4 @@
-4kb_blocksize,read_1gb,read_10gb,write_1gb,write_10gb
+blocksize_4kb,read_1gb,read_10gb,write_1gb,write_10gb
 noEncryption,0.77,4.83,1.83,17.16
 Encryption,4.03,40.29,13.50,133.38
 
